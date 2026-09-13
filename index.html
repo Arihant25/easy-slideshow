@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rapid Image Viewer</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080808;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+button,input{font:inherit}
+#drop{position:fixed;inset:0;display:grid;place-items:center;padding:24px}
+.drop-card{width:min(560px,100%);padding:48px 32px;text-align:center;border:1px solid #333;border-radius:18px;background:#111;box-shadow:0 20px 70px #0008}
+.drop-card h1{margin:0 0 10px;font-size:28px;font-weight:600}
+.drop-card p{margin:0;color:#999;font-size:14px}
+.drop-card .hint{margin-top:24px;display:inline-block;padding:10px 16px;border:1px solid #444;border-radius:9px;color:#bbb}
+#drop.over .drop-card{border-color:#aaa;background:#171717}
+#viewer{position:fixed;inset:0 0 94px;display:none;place-items:center}
+#image{max-width:100%;max-height:100%;object-fit:contain;user-select:none}
+#controls{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:8px 12px;border:1px solid #333;border-radius:11px;background:#151515ee;backdrop-filter:blur(12px);box-shadow:0 8px 30px #0008}
+#controls button{border:0;background:transparent;color:#eee;cursor:pointer;padding:5px 8px;border-radius:7px}
+#controls button:hover{background:#292929}
+#play{font-size:18px}
+#duration{width:150px;accent-color:#ddd}
+#durationText{min-width:68px;text-align:center;color:#ccc;font-size:13px;cursor:text;padding:5px 4px;border-radius:6px}
+#durationText:hover{background:#292929}
+#durationInput{width:72px;display:none;background:#222;border:1px solid #666;border-radius:6px;color:#fff;text-align:center;padding:5px}
+#hide{font-size:12px;color:#aaa!important}
+#count{position:fixed;top:12px;right:14px;display:none;color:#888;font-size:12px;pointer-events:none}
+#strip{position:fixed;left:0;right:0;bottom:0;height:88px;display:none;gap:5px;padding:7px 8px;background:#101010ee;border-top:1px solid #292929;overflow-x:auto;overflow-y:hidden}
+.thumb{height:72px;min-width:72px;width:72px;object-fit:cover;border-radius:5px;opacity:.48;cursor:pointer;flex:none}
+.thumb.current{opacity:1;outline:2px solid #fff;outline-offset:-2px}
+#showUi{position:fixed;right:14px;bottom:104px;display:none;background:#151515dd;border:1px solid #444;border-radius:8px;color:#ccc;padding:7px 10px;font-size:12px;cursor:pointer}
+#countdown{position:fixed;inset:0 0 94px;display:none;place-items:center;pointer-events:none;z-index:20}
+#countdown span{font-size:22vh;font-weight:700;color:#fff;text-shadow:0 4px 40px #000c;animation:pop .9s ease-out}
+@keyframes pop{from{transform:scale(.6);opacity:0}30%{transform:scale(1);opacity:1}to{transform:scale(1.15);opacity:0}}
+body.hidden-ui #controls,body.hidden-ui #count{display:none!important}
+body.hidden-ui #showUi{display:block}
+</style>
+</head>
+<body>
+
+<div id="drop">
+  <div class="drop-card">
+    <h1>Rapid Image Viewer</h1>
+    <p>Drop a folder or hundreds of images here</p>
+    <div class="hint">Choose images</div>
+  </div>
+</div>
+
+<div id="viewer"><img id="image" draggable="false" alt=""></div>
+
+<div id="countdown"><span></span></div>
+
+<div id="controls">
+  <button id="play" title="Play / pause">▶</button>
+  <button id="prev" title="Previous">‹</button>
+  <button id="next" title="Next">›</button>
+  <input id="duration" type="range" min="10" max="2000" step="10" value="450">
+  <span id="durationText" title="Click to enter milliseconds">450 ms</span>
+  <input id="durationInput" type="number" min="1" max="60000" value="450">
+  <button id="hide" title="Hide controls">Hide UI</button>
+</div>
+
+<div id="count"></div>
+<div id="strip"></div>
+<button id="showUi">Show UI</button>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const drop=$('drop'), viewer=$('viewer'), image=$('image'), controls=$('controls');
+  const play=$('play'), prev=$('prev'), next=$('next'), duration=$('duration');
+  const durationText=$('durationText'), durationInput=$('durationInput');
+  const count=$('count'), strip=$('strip'), showUi=$('showUi');
+  const countdown=$('countdown'), countdownNum=countdown.querySelector('span');
+
+  let files=[], index=0, playing=false, timer=null, currentUrl=null, countdownTimer=null;
+  const cache=new Map();
+
+  function imageFile(f){return f.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|avif|bmp|tif|tiff)$/i.test(f.name)}
+
+  function format(ms){return ms>=1000 ? (ms/1000).toFixed(2).replace(/\.?0+$/,'')+' s' : ms+' ms'}
+
+  function setDuration(v){
+    v=Math.max(1,Math.min(60000,Number(v)||450));
+    duration.value=Math.min(2000,Math.max(10,v));
+    durationText.textContent=format(v);
+    durationInput.value=v;
+    if(playing){clearTimeout(timer); schedule();}
+  }
+
+  function makeThumb(i){
+    const t=document.createElement('img');
+    t.className='thumb';
+    t.src=URL.createObjectURL(files[i]);
+    t.dataset.index=i;
+    t.title=`Image ${i+1}`;
+    t.onclick=()=>{cancelCountdown();stop();display(i)};
+    t.onload=()=>URL.revokeObjectURL(t.src);
+    return t;
+  }
+
+  function buildStrip(){
+    strip.innerHTML='';
+    const frag=document.createDocumentFragment();
+    files.forEach((_,i)=>frag.appendChild(makeThumb(i)));
+    strip.appendChild(frag);
+  }
+
+  function preloadAround(c){
+    for(let d=1;d<=5;d++){
+      const i=c+d;
+      if(i>=files.length || cache.has(i))continue;
+      const url=URL.createObjectURL(files[i]), im=new Image();
+      im.src=url; cache.set(i,{url,im});
+    }
+    for(const [i,x] of cache){
+      if(i<c-1 || i>c+5){URL.revokeObjectURL(x.url);cache.delete(i)}
+    }
+  }
+
+  function display(i){
+    if(!files.length)return;
+    index=(i+files.length)%files.length;
+    if(currentUrl)URL.revokeObjectURL(currentUrl);
+    const cached=cache.get(index);
+    if(cached){currentUrl=cached.url;cache.delete(index)}
+    else currentUrl=URL.createObjectURL(files[index]);
+    image.src=currentUrl;
+    count.textContent=`${index+1} / ${files.length}`;
+    [...strip.children].forEach((x,j)=>x.classList.toggle('current',j===index));
+    const thumb=strip.children[index];
+    if(thumb)thumb.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'});
+    preloadAround(index);
+  }
+
+  function schedule(){
+    timer=setTimeout(()=>{if(!playing)return;display(index+1);schedule()},Number(durationInput.value));
+  }
+  function start(){
+    if(playing||files.length<2)return;
+    playing=true;play.textContent='❚❚';schedule();
+  }
+  function stop(){playing=false;play.textContent='▶';clearTimeout(timer);timer=null}
+  function toggle(){cancelCountdown();playing?stop():start()}
+
+  function cancelCountdown(){
+    if(countdownTimer){clearTimeout(countdownTimer);countdownTimer=null}
+    countdown.style.display='none';
+  }
+
+  function runCountdown(n,done){
+    cancelCountdown();
+    countdown.style.display='grid';
+    const tick=k=>{
+      if(k<=0){countdown.style.display='none';countdownTimer=null;done();return}
+      countdownNum.textContent=k;
+      // restart the pop animation
+      countdownNum.style.animation='none';countdownNum.offsetHeight;countdownNum.style.animation='';
+      countdownTimer=setTimeout(()=>tick(k-1),1000);
+    };
+    tick(n);
+  }
+
+  function load(list){
+    const selected=[...list].filter(imageFile);
+    if(!selected.length)return;
+    cancelCountdown();stop();
+    files=selected;index=0;
+    cache.forEach(x=>URL.revokeObjectURL(x.url));cache.clear();
+    drop.style.display='none';viewer.style.display='grid';controls.style.display='flex';
+    count.style.display='block';strip.style.display='flex';
+    document.body.classList.remove('hidden-ui');
+    buildStrip();display(0);
+    if(files.length>1)runCountdown(3,start);
+  }
+
+  duration.addEventListener('input',()=>setDuration(Number(duration.value)));
+  durationText.onclick=()=>{
+    durationText.style.display='none';durationInput.style.display='block';
+    durationInput.focus();durationInput.select();
+  };
+  function finishInput(){
+    setDuration(durationInput.value);
+    durationInput.style.display='none';durationText.style.display='block';
+  }
+  durationInput.addEventListener('blur',finishInput);
+  durationInput.addEventListener('keydown',e=>{if(e.key==='Enter')finishInput();if(e.key==='Escape'){durationInput.value=durationText.textContent.match(/\d+(\.\d+)?/)[0];finishInput()}});
+
+  play.onclick=toggle;
+  prev.onclick=()=>{cancelCountdown();stop();display(index-1)};
+  next.onclick=()=>{cancelCountdown();stop();display(index+1)};
+  $('hide').onclick=()=>document.body.classList.add('hidden-ui');
+  showUi.onclick=()=>document.body.classList.remove('hidden-ui');
+
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');load(e.dataTransfer.files)});
+  drop.addEventListener('click',()=>{
+    const input=document.createElement('input');
+    input.type='file';input.multiple=true;input.accept='image/*';
+    input.onchange=()=>load(input.files);input.click();
+  });
+
+  document.addEventListener('keydown',e=>{
+    if(!files.length)return;
+    if(e.code==='Space'){e.preventDefault();toggle()}
+    else if(e.key==='ArrowRight'){cancelCountdown();stop();display(index+1)}
+    else if(e.key==='ArrowLeft'){cancelCountdown();stop();display(index-1)}
+    else if(e.key==='Escape')document.body.classList.toggle('hidden-ui');
+  });
+
+  window.addEventListener('beforeunload',()=>{
+    if(currentUrl)URL.revokeObjectURL(currentUrl);
+    cache.forEach(x=>URL.revokeObjectURL(x.url));
+  });
+})();
+</script>
+</body>
+</html>
