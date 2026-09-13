@@ -54,9 +54,9 @@ body.hidden-ui{cursor:none}
   <button id="play" title="Play / pause">▶</button>
   <button id="prev" title="Previous">‹</button>
   <button id="next" title="Next">›</button>
-  <input id="duration" type="range" min="10" max="2000" step="10" value="400">
-  <span id="durationText" title="Click to enter milliseconds">400 ms</span>
-  <input id="durationInput" type="number" min="1" max="60000" value="400">
+  <input id="duration" type="range" min="10" max="2000" step="10" value="200">
+  <span id="durationText" title="Click to enter milliseconds">200 ms</span>
+  <input id="durationInput" type="number" min="1" max="60000" value="200">
   <button id="hide" title="Hide controls">Hide UI</button>
 </div>
 
@@ -80,7 +80,7 @@ body.hidden-ui{cursor:none}
   function format(ms){return ms>=1000 ? (ms/1000).toFixed(2).replace(/\.?0+$/,'')+' s' : ms+' ms'}
 
   function setDuration(v){
-    v=Math.max(1,Math.min(60000,Number(v)||400));
+    v=Math.max(1,Math.min(60000,Number(v)||200));
     duration.value=Math.min(2000,Math.max(10,v));
     durationText.textContent=format(v);
     durationInput.value=v;
