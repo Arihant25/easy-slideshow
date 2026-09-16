@@ -8,7 +8,7 @@
 <meta name="keywords" content="slideshow, image viewer, photo slideshow, rapid image viewer, browser slideshow, local image slideshow, quick image player">
 <meta name="author" content="Arihant Tripathy">
 <meta name="robots" content="index, follow">
-<meta name="theme-color" content="#080808">
+<meta name="theme-color" content="#1c1c1c">
 <link rel="canonical" href="https://arihant25.github.io/easy-slideshow/">
 
 <!-- Open Graph -->
@@ -23,7 +23,7 @@
 <meta name="twitter:title" content="Easy Slideshow – Fast In-Browser Image Slideshow Viewer">
 <meta name="twitter:description" content="Free, private slideshow viewer. Drop hundreds of images and play them fast with adjustable speed. No uploads — everything stays on your device.">
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23080808'/%3E%3Cpolygon points='40,32 40,68 68,50' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231c1c1c'/%3E%3Cpolygon points='40,32 40,68 68,50' fill='%23fff'/%3E%3C/svg%3E">
 
 <script type="application/ld+json">
 {
@@ -40,35 +40,113 @@
 }
 </script>
 <style>
+:root{
+  --bg:#1c1c1c;          /* window chrome (Mica-ish dark) */
+  --stage:#000;          /* photo backdrop */
+  --fg:#ffffff;
+  --muted:#c9c9c9;
+  --hover:rgba(255,255,255,.08);
+  --active:rgba(255,255,255,.13);
+  --line:rgba(255,255,255,.09);
+  --accent:#4cc2ff;      /* Win11 accent (light-on-dark) */
+}
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080808;color:#fff;font-family:system-ui,-apple-system,sans-serif}
-button,input{font:inherit}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+  font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px}
+button,input{font:inherit;color:inherit}
+svg{display:block}
+
+/* ---------- Drop / home screen ---------- */
 #drop{position:fixed;inset:0;display:grid;place-items:center;padding:24px}
-.drop-card{width:min(560px,100%);padding:48px 32px;text-align:center;border:1px solid #333;border-radius:18px;background:#111;box-shadow:0 20px 70px #0008}
-.drop-card h1{margin:0 0 10px;font-size:28px;font-weight:600}
-.drop-card p{margin:0;color:#999;font-size:14px}
-.drop-card .hint{margin-top:24px;display:inline-block;padding:10px 16px;border:1px solid #444;border-radius:9px;color:#bbb}
-#drop.over .drop-card{border-color:#aaa;background:#171717}
-#viewer{position:fixed;inset:0 0 94px;display:none;place-items:center}
-#image{max-width:100%;max-height:100%;object-fit:contain;user-select:none}
-#controls{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:8px 12px;border:1px solid #333;border-radius:11px;background:#151515ee;backdrop-filter:blur(12px);box-shadow:0 8px 30px #0008}
-#controls button{border:0;background:transparent;color:#eee;cursor:pointer;padding:5px 8px;border-radius:7px}
-#controls button:hover{background:#292929}
-#play{font-size:18px}
-#duration{width:150px;accent-color:#ddd}
-#durationText{min-width:68px;text-align:center;color:#ccc;font-size:13px;cursor:text;padding:5px 4px;border-radius:6px}
-#durationText:hover{background:#292929}
-#durationInput{width:72px;display:none;background:#222;border:1px solid #666;border-radius:6px;color:#fff;text-align:center;padding:5px}
-#hide{font-size:12px;color:#aaa!important}
-#count{position:fixed;top:12px;right:14px;display:none;color:#888;font-size:12px;pointer-events:none}
-#strip{position:fixed;left:0;right:0;bottom:0;height:88px;display:none;justify-content:safe center;gap:5px;padding:7px 8px;background:#101010ee;overflow-x:auto;overflow-y:hidden}
-.thumb{height:72px;min-width:72px;width:72px;object-fit:cover;border-radius:5px;border:1px solid #333;opacity:.48;cursor:pointer;flex:none}
-.thumb.current{opacity:1;outline:2px solid #fff;outline-offset:-2px}
-#countdown{position:fixed;inset:0 0 94px;display:none;place-items:center;pointer-events:none;z-index:20}
+.drop-card{width:min(560px,100%);padding:52px 36px;text-align:center;border:1px solid var(--line);
+  border-radius:12px;background:#252525;box-shadow:0 24px 70px #000a}
+.drop-card h1{margin:0 0 10px;font-size:26px;font-weight:600}
+.drop-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.drop-card .hint{margin-top:26px;display:inline-flex;align-items:center;gap:8px;padding:9px 18px;
+  border:1px solid var(--accent);border-radius:6px;color:#fff;background:rgba(76,194,255,.12)}
+#drop.over .drop-card{border-color:var(--accent);background:#2b2b2b}
+
+/* ---------- App shell ---------- */
+#app{position:fixed;inset:0;display:none;grid-template-rows:48px 1fr auto;background:var(--stage)}
+
+/* ---------- Title bar ---------- */
+#titlebar{position:relative;height:48px;display:flex;align-items:center;background:var(--bg);
+  border-bottom:1px solid var(--line);-webkit-app-region:drag}
+.tb-left{display:flex;align-items:center;gap:2px;padding-left:8px;z-index:2}
+.tb-right{display:flex;align-items:stretch;margin-left:auto;height:100%;z-index:2}
+.tb-title{position:absolute;left:50%;top:0;height:48px;transform:translateX(-50%);
+  display:flex;align-items:center;max-width:38vw;overflow:hidden;white-space:nowrap;
+  text-overflow:ellipsis;color:#f3f3f3;font-size:13px;pointer-events:none}
+
+.tb-btn{-webkit-app-region:no-drag;display:inline-flex;align-items:center;gap:8px;height:34px;
+  padding:0 10px;border:0;background:transparent;border-radius:6px;cursor:pointer;color:#f3f3f3}
+.tb-btn:hover{background:var(--hover)}
+.tb-btn:active{background:var(--active)}
+.tb-btn.icon{width:36px;padding:0;justify-content:center}
+.tb-btn.edit{padding:0 14px 0 12px;background:var(--hover)}
+.tb-btn.edit:hover{background:var(--active)}
+.tb-btn.openwith{margin:7px 6px;padding:0 12px;background:var(--hover);border:1px solid var(--line)}
+.tb-btn.openwith:hover{background:var(--active)}
+
+.caption{display:flex;align-items:stretch;height:100%;-webkit-app-region:no-drag}
+.caption button{width:46px;height:100%;border:0;background:transparent;color:#f3f3f3;cursor:pointer;
+  display:grid;place-items:center}
+.caption button:hover{background:var(--hover)}
+.caption .close:hover{background:#c42b1c;color:#fff}
+
+/* ---------- Stage ---------- */
+#stage{position:relative;overflow:hidden;background:var(--stage);display:grid;place-items:center}
+#image{max-width:100%;max-height:100%;object-fit:contain;user-select:none;transform-origin:center center;
+  transition:transform .12s ease}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:76px;border:0;cursor:pointer;
+  display:grid;place-items:center;color:#fff;border-radius:8px;
+  background:rgba(30,30,30,.55);backdrop-filter:blur(6px);opacity:0;transition:opacity .15s}
+#stage:hover .nav{opacity:1}
+.nav:hover{background:rgba(50,50,50,.8)}
+.nav.prev{left:10px}
+.nav.next{right:10px}
+
+/* ---------- Filmstrip (thumbnails) ---------- */
+#strip{position:absolute;left:0;right:0;bottom:56px;display:none;justify-content:safe center;gap:8px;
+  padding:0 16px;overflow-x:auto;overflow-y:hidden;z-index:3;scrollbar-width:none}
+#strip::-webkit-scrollbar{display:none}
+#app.no-strip #strip{display:none!important}
+.thumb{height:54px;width:92px;object-fit:cover;border-radius:4px;cursor:pointer;flex:none;
+  opacity:.9;border:1px solid rgba(255,255,255,.12);transition:opacity .12s}
+.thumb:hover{opacity:1}
+.thumb.current{opacity:1;border-color:transparent;outline:2px solid #fff;outline-offset:2px;border-radius:5px}
+
+/* ---------- Status bar ---------- */
+#statusbar{position:relative;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  height:44px;padding:0 8px;background:var(--bg);border-top:1px solid var(--line)}
+.sb-group{display:flex;align-items:center;gap:2px}
+.sb-left{justify-self:start}
+.sb-center{justify-self:center}
+.sb-right{justify-self:end}
+.sb-btn{-webkit-app-region:no-drag;width:34px;height:34px;border:0;background:transparent;border-radius:6px;
+  cursor:pointer;display:grid;place-items:center;color:#f3f3f3}
+.sb-btn:hover{background:var(--hover)}
+.sb-btn:active{background:var(--active)}
+
+#durationText{display:inline-flex;align-items:center;gap:6px;min-width:78px;justify-content:center;
+  height:32px;padding:0 8px;border-radius:6px;color:#e9e9e9;font-size:13px;cursor:pointer}
+#durationText:hover{background:var(--hover)}
+#durationInput{width:72px;height:30px;display:none;background:#2b2b2b;border:1px solid #666;border-radius:6px;
+  color:#fff;text-align:center;padding:0 6px;margin:0 2px}
+
+/* Win11-style range slider (repurposed as slideshow speed) */
+#duration{-webkit-appearance:none;appearance:none;width:120px;height:24px;background:transparent;cursor:pointer;margin:0 2px}
+#duration::-webkit-slider-runnable-track{height:3px;border-radius:3px;background:rgba(255,255,255,.35)}
+#duration::-moz-range-track{height:3px;border-radius:3px;background:rgba(255,255,255,.35)}
+#duration::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5.5px;
+  border-radius:50%;background:#fff;border:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 3px rgba(0,0,0,.001)}
+#duration::-moz-range-thumb{width:14px;height:14px;border:1px solid rgba(0,0,0,.25);border-radius:50%;background:#fff}
+#duration:hover::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(255,255,255,.15)}
+
+/* ---------- Countdown ---------- */
+#countdown{position:absolute;inset:0;display:none;place-items:center;pointer-events:none;z-index:20}
 #countdown span{font-size:22vh;font-weight:700;color:#fff;text-shadow:0 4px 40px #000c;animation:pop .9s ease-out}
 @keyframes pop{from{transform:scale(.6);opacity:0}30%{transform:scale(1);opacity:1}to{transform:scale(1.15);opacity:0}}
-body.hidden-ui #controls,body.hidden-ui #count{display:none!important}
-body.hidden-ui{cursor:none}
 </style>
 </head>
 <body>
@@ -81,43 +159,120 @@ body.hidden-ui{cursor:none}
   </div>
 </div>
 
-<div id="viewer"><img id="image" draggable="false" alt=""></div>
+<div id="app">
+  <!-- Title bar -->
+  <header id="titlebar">
+    <div class="tb-left">
+      <button class="tb-btn edit" id="editBtn" title="Edit">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 3.6l3 3-9.4 9.4-3.6.6.6-3.6z"/><path d="M11.9 5.1l3 3"/></svg>
+        Edit
+      </button>
+      <button class="tb-btn icon" id="rotateBtn" title="Rotate">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10a5.5 5.5 0 1 0 1.7-3.98"/><path d="M4 3.5V7h3.5"/></svg>
+      </button>
+      <button class="tb-btn icon" id="deleteBtn" title="Delete">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6h11"/><path d="M8 6V4.6c0-.33.27-.6.6-.6h2.8c.33 0 .6.27.6.6V6"/><path d="M6 6l.6 9.4c.03.34.31.6.65.6h5.5c.34 0 .62-.26.65-.6L14 6"/><path d="M8.3 8.6l.2 5M11.7 8.6l-.2 5"/></svg>
+      </button>
+      <button class="tb-btn icon" id="printBtn" title="Print">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V4h8v4"/><path d="M6 14.5H4.5A1.5 1.5 0 0 1 3 13V9.5A1.5 1.5 0 0 1 4.5 8h11A1.5 1.5 0 0 1 17 9.5V13a1.5 1.5 0 0 1-1.5 1.5H14"/><rect x="6" y="12" width="8" height="4" rx="0.5"/></svg>
+      </button>
+      <button class="tb-btn icon" id="shareBtn" title="Share">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2v8.3"/><path d="M7 6l3-3 3 3"/><path d="M5.5 10.5v4.3c0 .66.54 1.2 1.2 1.2h6.6c.66 0 1.2-.54 1.2-1.2v-4.3"/></svg>
+      </button>
+      <button class="tb-btn icon" id="moreBtn" title="See more">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><circle cx="5" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="15" cy="10" r="1.4"/></svg>
+      </button>
+    </div>
 
-<div id="countdown"><span></span></div>
+    <div class="tb-title" id="fileName">Image</div>
 
-<div id="controls">
-  <button id="play" title="Play / pause">▶</button>
-  <button id="prev" title="Previous">‹</button>
-  <button id="next" title="Next">›</button>
-  <input id="duration" type="range" min="50" max="1000" step="10" value="200">
-  <span id="durationText" title="Click to enter milliseconds">200 ms</span>
-  <input id="durationInput" type="number" min="1" max="60000" value="200">
-  <button id="hide" title="Hide controls">Hide UI</button>
+    <div class="tb-right">
+      <button class="tb-btn openwith" id="openWithBtn" title="Open with">
+        Open with
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
+      </button>
+      <div class="caption">
+        <button class="min" id="minBtn" title="Minimize"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 10h12"/></svg></button>
+        <button class="max" id="maxBtn" title="Maximize"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="12" height="12" rx="1.5"/></svg></button>
+        <button class="close" id="closeBtn" title="Close"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stage -->
+  <div id="stage">
+    <img id="image" draggable="false" alt="">
+    <button class="nav prev" id="navPrev" title="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="nav next" id="navNext" title="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    <div id="strip"></div>
+    <div id="countdown"><span></span></div>
+  </div>
+
+  <!-- Status bar -->
+  <footer id="statusbar">
+    <div class="sb-group sb-left">
+      <button class="sb-btn" id="filmBtn" title="Filmstrip">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="15" height="9" rx="1.2"/><path d="M6.5 5.5v9M13.5 5.5v9"/></svg>
+      </button>
+      <button class="sb-btn" id="play" title="Slideshow (Space)">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.6"/><path d="M8.3 7.4l4 2.6-4 2.6z" fill="currentColor" stroke="none"/></svg>
+      </button>
+    </div>
+
+    <div class="sb-group sb-center">
+      <button class="sb-btn" id="infoBtn" title="File information">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 9v4.2"/><circle cx="10" cy="6.6" r=".85" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="sb-btn" id="captionBtn" title="Details">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="10" rx="1.4"/><path d="M6 9h8M6 12h5"/></svg>
+      </button>
+    </div>
+
+    <div class="sb-group sb-right">
+      <button class="sb-btn" id="fitBtn" title="Reset view">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7V4.5A1 1 0 0 1 4.5 3.5H7"/><path d="M13 3.5h2.5a1 1 0 0 1 1 1V7"/><path d="M16.5 13v2.5a1 1 0 0 1-1 1H13"/><path d="M7 16.5H4.5a1 1 0 0 1-1-1V13"/></svg>
+      </button>
+      <span id="durationText" title="Slideshow speed — click to type milliseconds">200 ms
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
+      </span>
+      <input id="durationInput" type="number" min="1" max="60000" value="200">
+      <button class="sb-btn" id="slowBtn" title="Slower">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 10h10"/></svg>
+      </button>
+      <input id="duration" type="range" min="50" max="1000" step="10" value="200">
+      <button class="sb-btn" id="fastBtn" title="Faster">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 5v10M5 10h10"/></svg>
+      </button>
+      <button class="sb-btn" id="fullBtn" title="Full screen">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5V4.5A.5.5 0 0 1 4.5 4H7.5"/><path d="M12.5 4h3a.5.5 0 0 1 .5.5v3"/><path d="M16 12.5v3a.5.5 0 0 1-.5.5h-3"/><path d="M7.5 16h-3a.5.5 0 0 1-.5-.5v-3"/></svg>
+      </button>
+    </div>
+  </footer>
 </div>
-
-<div id="count"></div>
-<div id="strip"></div>
 
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const drop=$('drop'), viewer=$('viewer'), image=$('image'), controls=$('controls');
-  const play=$('play'), prev=$('prev'), next=$('next'), duration=$('duration');
+  const drop=$('drop'), app=$('app'), image=$('image');
+  const play=$('play'), navPrev=$('navPrev'), navNext=$('navNext'), duration=$('duration');
   const durationText=$('durationText'), durationInput=$('durationInput');
-  const count=$('count'), strip=$('strip');
-  const countdown=$('countdown'), countdownNum=countdown.querySelector('span');
+  const fileName=$('fileName'), strip=$('strip');
+  const countdown=$('countdown'), countdownNum=countdown.querySelector('span'), stage=$('stage');
 
-  let files=[], index=0, playing=false, timer=null, currentUrl=null, countdownTimer=null;
+  let files=[], index=0, playing=false, timer=null, currentUrl=null, countdownTimer=null, rot=0;
   const cache=new Map();
 
   function imageFile(f){return f.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|avif|bmp|tif|tiff)$/i.test(f.name)}
 
   function format(ms){return ms>=1000 ? (ms/1000).toFixed(2).replace(/\.?0+$/,'')+' s' : ms+' ms'}
 
+  function setDurationLabel(v){
+    durationText.firstChild.nodeValue=format(v)+' ';
+  }
   function setDuration(v){
     v=Math.max(1,Math.min(60000,Number(v)||200));
     duration.value=Math.min(1000,Math.max(50,v));
-    durationText.textContent=format(v);
+    setDurationLabel(v);
     durationInput.value=v;
     if(playing){clearTimeout(timer); schedule();}
   }
@@ -127,7 +282,7 @@ body.hidden-ui{cursor:none}
     t.className='thumb';
     t.src=URL.createObjectURL(files[i]);
     t.dataset.index=i;
-    t.title=`Image ${i+1}`;
+    t.title=files[i].name;
     t.onclick=()=>{cancelCountdown();stop();display(i)};
     t.onload=()=>URL.revokeObjectURL(t.src);
     return t;
@@ -152,30 +307,53 @@ body.hidden-ui{cursor:none}
     }
   }
 
+  function applyRotation(){
+    let scale=1;
+    if((rot%180)!==0 && image.naturalWidth){
+      const W=stage.clientWidth, H=stage.clientHeight;
+      const r=Math.min(W/image.naturalWidth, H/image.naturalHeight);
+      const dispW=image.naturalWidth*r, dispH=image.naturalHeight*r;
+      scale=Math.min(W/dispH, H/dispW, 1);
+    }
+    image.style.transform=`rotate(${rot}deg) scale(${scale})`;
+  }
+
   function display(i){
     if(!files.length)return;
     index=(i+files.length)%files.length;
+    rot=0;
     if(currentUrl)URL.revokeObjectURL(currentUrl);
     const cached=cache.get(index);
     if(cached){currentUrl=cached.url;cache.delete(index)}
     else currentUrl=URL.createObjectURL(files[index]);
+    image.style.transform='';
     image.src=currentUrl;
-    count.textContent=`${index+1} / ${files.length}`;
+    fileName.textContent=files[index].name;
+    document.title=files[index].name+' — Easy Slideshow';
     [...strip.children].forEach((x,j)=>x.classList.toggle('current',j===index));
     const thumb=strip.children[index];
     if(thumb)thumb.scrollIntoView({behavior:'auto',block:'nearest',inline:'center'});
     preloadAround(index);
   }
 
+  image.addEventListener('load',applyRotation);
+  window.addEventListener('resize',applyRotation);
+
   function schedule(){
     timer=setTimeout(()=>{if(!playing)return;display(index+1);schedule()},Number(durationInput.value));
   }
   function start(){
     if(playing||files.length<2)return;
-    playing=true;play.textContent='❚❚';schedule();
+    playing=true;setPlayIcon(true);schedule();
   }
-  function stop(){playing=false;play.textContent='▶';clearTimeout(timer);timer=null}
+  function stop(){playing=false;setPlayIcon(false);clearTimeout(timer);timer=null}
   function toggle(){cancelCountdown();playing?stop():start()}
+  function setPlayIcon(on){
+    play.innerHTML = on
+      ? '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.6"/><path d="M8 7.5v5M12 7.5v5" stroke-width="1.6"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.6"/><path d="M8.3 7.4l4 2.6-4 2.6z" fill="currentColor" stroke="none"/></svg>';
+    play.title = on ? 'Pause (Space)' : 'Slideshow (Space)';
+  }
 
   function cancelCountdown(){
     if(countdownTimer){clearTimeout(countdownTimer);countdownTimer=null}
@@ -188,11 +366,19 @@ body.hidden-ui{cursor:none}
     const tick=k=>{
       if(k<=0){countdown.style.display='none';countdownTimer=null;done();return}
       countdownNum.textContent=k;
-      // restart the pop animation
       countdownNum.style.animation='none';countdownNum.offsetHeight;countdownNum.style.animation='';
       countdownTimer=setTimeout(()=>tick(k-1),1000);
     };
     tick(n);
+  }
+
+  function goHome(){
+    cancelCountdown();stop();
+    if(currentUrl){URL.revokeObjectURL(currentUrl);currentUrl=null}
+    cache.forEach(x=>URL.revokeObjectURL(x.url));cache.clear();
+    files=[];index=0;
+    app.style.display='none';drop.style.display='grid';
+    document.title='Easy Slideshow – Fast In-Browser Image Slideshow Viewer';
   }
 
   function load(list){
@@ -201,13 +387,13 @@ body.hidden-ui{cursor:none}
     cancelCountdown();stop();
     files=selected;index=0;
     cache.forEach(x=>URL.revokeObjectURL(x.url));cache.clear();
-    drop.style.display='none';viewer.style.display='grid';controls.style.display='flex';
-    count.style.display='block';strip.style.display='flex';
-    document.body.classList.remove('hidden-ui');
+    drop.style.display='none';app.style.display='grid';
+    strip.style.display='flex';app.classList.remove('no-strip');
     buildStrip();display(0);
     if(files.length>1)runCountdown(3,start);
   }
 
+  // Speed slider / label
   duration.addEventListener('input',()=>setDuration(Number(duration.value)));
   durationText.onclick=()=>{
     durationText.style.display='none';durationInput.style.display='block';
@@ -215,20 +401,41 @@ body.hidden-ui{cursor:none}
   };
   function finishInput(){
     setDuration(durationInput.value);
-    durationInput.style.display='none';durationText.style.display='block';
+    durationInput.style.display='none';durationText.style.display='inline-flex';
   }
   durationInput.addEventListener('blur',finishInput);
-  durationInput.addEventListener('keydown',e=>{if(e.key==='Enter')finishInput();if(e.key==='Escape'){durationInput.value=durationText.textContent.match(/\d+(\.\d+)?/)[0];finishInput()}});
+  durationInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter')finishInput();
+    if(e.key==='Escape'){durationInput.value=Number(durationText.textContent.match(/[\d.]+/)[0]);finishInput()}
+  });
+  $('slowBtn').onclick=()=>setDuration(Number(durationInput.value)+50);
+  $('fastBtn').onclick=()=>setDuration(Number(durationInput.value)-50);
 
+  // Playback + navigation
   play.onclick=toggle;
-  prev.onclick=()=>{cancelCountdown();stop();display(index-1)};
-  next.onclick=()=>{cancelCountdown();stop();display(index+1)};
-  $('hide').onclick=()=>document.body.classList.add('hidden-ui');
+  navPrev.onclick=()=>{cancelCountdown();stop();display(index-1)};
+  navNext.onclick=()=>{cancelCountdown();stop();display(index+1)};
 
-  function revealUi(){if(document.body.classList.contains('hidden-ui'))document.body.classList.remove('hidden-ui')}
-  document.addEventListener('mousemove',revealUi);
-  document.addEventListener('pointerdown',revealUi);
+  // Title-bar actions
+  $('rotateBtn').onclick=()=>{rot=(rot+90)%360;applyRotation()};
+  $('fitBtn').onclick=()=>{rot=0;applyRotation()};
+  $('deleteBtn').onclick=()=>{
+    if(!files.length)return;
+    cache.forEach(x=>URL.revokeObjectURL(x.url));cache.clear();
+    files.splice(index,1);
+    if(!files.length){goHome();return}
+    buildStrip();display(index % files.length);
+  };
+  $('closeBtn').onclick=goHome;
 
+  // Status-bar toggles
+  $('filmBtn').onclick=()=>app.classList.toggle('no-strip');
+  $('fullBtn').onclick=()=>{
+    if(document.fullscreenElement)document.exitFullscreen();
+    else (document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen());
+  };
+
+  // Drop / picker
   drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
   drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
   drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');load(e.dataTransfer.files)});
@@ -243,7 +450,7 @@ body.hidden-ui{cursor:none}
     if(e.code==='Space'){e.preventDefault();toggle()}
     else if(e.key==='ArrowRight'){cancelCountdown();stop();display(index+1)}
     else if(e.key==='ArrowLeft'){cancelCountdown();stop();display(index-1)}
-    else if(e.key==='Escape')document.body.classList.toggle('hidden-ui');
+    else if(e.key==='Escape')goHome();
   });
 
   window.addEventListener('beforeunload',()=>{
