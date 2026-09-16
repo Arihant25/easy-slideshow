@@ -145,8 +145,17 @@ svg{display:block}
 
 /* ---------- Countdown ---------- */
 #countdown{position:absolute;inset:0;display:none;place-items:center;pointer-events:none;z-index:20}
-#countdown span{font-size:22vh;font-weight:700;color:#fff;text-shadow:0 4px 40px #000c;animation:pop .9s ease-out}
-@keyframes pop{from{transform:scale(.6);opacity:0}30%{transform:scale(1);opacity:1}to{transform:scale(1.15);opacity:0}}
+.cd-ring{position:relative;width:170px;height:170px;display:grid;place-items:center;border-radius:50%;
+  background:rgba(20,20,20,.4);backdrop-filter:blur(16px);
+  box-shadow:0 16px 60px #000b, inset 0 0 0 1px rgba(255,255,255,.08);animation:cd-in .35s ease-out}
+.cd-ring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.cd-track{fill:none;stroke:rgba(255,255,255,.14);stroke-width:4}
+.cd-prog{fill:none;stroke:var(--accent);stroke-width:4;stroke-linecap:round;stroke-dasharray:295;
+  filter:drop-shadow(0 0 6px rgba(76,194,255,.55))}
+.cd-num{font-size:78px;font-weight:600;color:#fff;letter-spacing:-2px;line-height:1}
+@keyframes cd-in{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes cd-sweep{from{stroke-dashoffset:0}to{stroke-dashoffset:295}}
+@keyframes cd-pop{0%{transform:scale(.55);opacity:0}35%{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -193,7 +202,6 @@ svg{display:block}
       </button>
       <div class="caption">
         <button class="min" id="minBtn" title="Minimize"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 10h12"/></svg></button>
-        <button class="max" id="maxBtn" title="Maximize"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="12" height="12" rx="1.5"/></svg></button>
         <button class="close" id="closeBtn" title="Close"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
       </div>
     </div>
@@ -205,7 +213,12 @@ svg{display:block}
     <button class="nav prev" id="navPrev" title="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <button class="nav next" id="navNext" title="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
     <div id="strip"></div>
-    <div id="countdown"><span></span></div>
+    <div id="countdown">
+      <div class="cd-ring">
+        <svg viewBox="0 0 100 100"><circle class="cd-track" cx="50" cy="50" r="47"/><circle class="cd-prog" cx="50" cy="50" r="47"/></svg>
+        <span class="cd-num"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Status bar -->
@@ -257,7 +270,8 @@ svg{display:block}
   const play=$('play'), navPrev=$('navPrev'), navNext=$('navNext'), duration=$('duration');
   const durationText=$('durationText'), durationInput=$('durationInput');
   const fileName=$('fileName'), strip=$('strip');
-  const countdown=$('countdown'), countdownNum=countdown.querySelector('span'), stage=$('stage');
+  const countdown=$('countdown'), countdownNum=countdown.querySelector('.cd-num');
+  const countdownProg=countdown.querySelector('.cd-prog'), stage=$('stage');
 
   let files=[], index=0, playing=false, timer=null, currentUrl=null, countdownTimer=null, rot=0;
   const cache=new Map();
@@ -366,7 +380,10 @@ svg{display:block}
     const tick=k=>{
       if(k<=0){countdown.style.display='none';countdownTimer=null;done();return}
       countdownNum.textContent=k;
-      countdownNum.style.animation='none';countdownNum.offsetHeight;countdownNum.style.animation='';
+      countdownNum.style.animation='none';countdownProg.style.animation='none';
+      countdownNum.offsetHeight;
+      countdownNum.style.animation='cd-pop .45s ease-out';
+      countdownProg.style.animation='cd-sweep 1s linear forwards';
       countdownTimer=setTimeout(()=>tick(k-1),1000);
     };
     tick(n);
